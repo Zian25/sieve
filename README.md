@@ -1,14 +1,23 @@
 # Sieve
 
-Intelligent URL deduplication tool for bug bounty workflows and DAST pipelines.
+[![Crates.io](https://img.shields.io/crates/v/sieve)](https://crates.io/crates/sieve)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+> Intelligent URL deduplication for offensive security workflows.
+> Reduce 10,000 UUID-varied endpoints to 80 unique attack surfaces.
 
 ## The Problem
 
 Modern crawlers (katana, hakrawler) and fuzzers output massive lists of URLs. Feeding 10,000 variations of the same endpoint (e.g., `/api/v1/users/{uuid}/profile`) into scanners like `nuclei` or `sqlmap` wastes compute time, burns bandwidth, and triggers rate limiting that gets your IP banned by WAFs.
 
-## The Solution
+## Why Sieve?
 
-Sieve does not do dumb string matching. It groups URLs by their **structural and semantic fingerprint**, collapsing paths with dynamic segments (UUIDs, hashes, base64 tokens, timestamps) into a single representative URL. The result: a minimal set of structurally unique paths ready for active scanning.
+| Feature | `anew` | `uro` | **sieve** |
+|---------|--------|-------|-----------|
+| Semantic path normalization | ❌ | ✅ | ✅ |
+| Streaming (zero-latency) | ❌ | ❌ | ✅ |
+| Auto-learn patterns from data | ❌ | ❌ | ✅ |
+| Configurable normalization rules | ❌ | ❌ | ✅ |
 
 ## Install
 
@@ -19,8 +28,8 @@ cargo install sieve
 Or build from source:
 
 ```bash
-cargo install --path .
 cargo build --release
+./target/release/sieve --help
 ```
 
 ## Quick Start
@@ -35,6 +44,8 @@ sieve -i urls.txt -o deduped.txt
 # Show statistics
 sieve -i urls.txt --stats
 ```
+
+> **Note:** Streaming mode (default, no `--sort`) emits the first seen URL per group. For deterministic output (lexicographically smallest representative), use `--sort`.
 
 ## Real-World Results
 
@@ -95,8 +106,6 @@ sieve -i urls.txt | httpx -silent -status-code
 
 Streaming mode is automatically disabled when `--sort`, `--format counted`, `--format json`, or `--invalid-output` is used, as these require the full dataset before output.
 
-> **Note:** Streaming mode emits the first seen URL per group as the representative. For deterministic output (lexicographically smallest representative), use batch mode or `--sort`.
-
 ## Diff Mode
 
 Compare a new URL list against a previously seen baseline, outputting only new (not previously seen) URLs:
@@ -133,7 +142,9 @@ sieve --learn --apply -i urls.txt --stats
 
 Sieve is engineered to handle pipelines with tens of millions of URLs:
 
-- **Streaming with minimal memory:** In streaming mode (default for `rep` and `jsonl`), Sieve stores only a `u64` rapidhash per unique fingerprint -- not the full URL string. Memory scales with the number of unique paths, not the input size.
+- **Throughput:** ~1M URLs/second on a modern laptop (streaming mode).
+- **Memory:** ~8 bytes per unique fingerprint in streaming mode (only a `u64` hash is stored).
+- **Batch mode:** Holds full result set in memory; suitable for datasets up to several million URLs.
 - **Reusable fingerprint buffer:** A single pre-allocated `String` is reused across all URLs, avoiding heap allocation per URL in the hot path.
 - **Single-pass regex matching:** All detection patterns (UUID, hash, ULID, epoch, etc.) are compiled into one `RegexSet` and evaluated simultaneously, not sequentially.
 - **Fast hashing:** Uses `Rapidhash` for fingerprint deduplication in streaming mode -- one of the fastest non-cryptographic hash algorithms, passing all SMHasher quality tests.
@@ -209,3 +220,7 @@ sieve -i urls.txt --format jsonl | jq -r '.representative'
 # Dedup scheme-less URLs
 sieve -i hosts.txt --assume-scheme https
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
