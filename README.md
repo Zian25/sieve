@@ -95,6 +95,8 @@ sieve -i urls.txt | httpx -silent -status-code
 
 Streaming mode is automatically disabled when `--sort`, `--format counted`, `--format json`, or `--invalid-output` is used, as these require the full dataset before output.
 
+> **Note:** Streaming mode emits the first seen URL per group as the representative. For deterministic output (lexicographically smallest representative), use batch mode or `--sort`.
+
 ## Diff Mode
 
 Compare a new URL list against a previously seen baseline, outputting only new (not previously seen) URLs:
