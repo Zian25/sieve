@@ -30,7 +30,7 @@ impl Stats {
 
     pub fn print(&self) {
         eprintln!();
-        eprintln!("=== Sieve Statistics ===");
+        eprintln!("=== urlsieve Statistics ===");
         eprintln!("Total URLs processed:    {}", self.total_urls);
         eprintln!("Unique fingerprints:     {}", self.unique_fingerprints);
         eprintln!("Duplicates removed:      {}", self.duplicates_removed);
