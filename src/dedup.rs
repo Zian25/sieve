@@ -8,7 +8,7 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 
 use crate::cli::OutputFormat;
 use crate::config::Config;
-use crate::url::{parse_url, Fingerprinter};
+use crate::url::{parse_path, parse_url, Fingerprinter};
 
 static STREAMING_HASHER: LazyLock<rapidhash::fast::GlobalState> =
     LazyLock::new(rapidhash::fast::GlobalState::default);
@@ -35,6 +35,7 @@ pub fn deduplicate<R: BufRead>(
     assume_scheme: &str,
     strip_query: bool,
     sort: bool,
+    path_only: bool,
 ) -> DedupResult {
     let fingerprinter = Fingerprinter::new(config);
     let mut groups: AHashMap<String, (String, usize)> = AHashMap::new();
@@ -52,7 +53,12 @@ pub fn deduplicate<R: BufRead>(
 
         total_urls += 1;
 
-        let Some(parsed) = parse_url(trimmed, assume_scheme) else {
+        let parsed = if path_only {
+            parse_path(trimmed)
+        } else {
+            parse_url(trimmed, assume_scheme)
+        };
+        let Some(parsed) = parsed else {
             invalid_urls.push(trimmed.to_string());
             continue;
         };
@@ -112,6 +118,7 @@ pub fn deduplicate_stream<R: BufRead, W: Write>(
     assume_scheme: &str,
     strip_query: bool,
     format: OutputFormat,
+    path_only: bool,
 ) -> Result<StreamStats, String> {
     let fingerprinter = Fingerprinter::new(config);
     let mut seen: AHashSet<u64> = AHashSet::new();
@@ -130,7 +137,12 @@ pub fn deduplicate_stream<R: BufRead, W: Write>(
 
         total_urls += 1;
 
-        let Some(parsed) = parse_url(trimmed, assume_scheme) else {
+        let parsed = if path_only {
+            parse_path(trimmed)
+        } else {
+            parse_url(trimmed, assume_scheme)
+        };
+        let Some(parsed) = parsed else {
             invalid_urls += 1;
             continue;
         };
@@ -182,6 +194,7 @@ pub fn deduplicate_stream<R: BufRead, W: Write>(
 /// # Errors
 ///
 /// Returns an error if reading, parsing, or loading the baseline fails.
+#[allow(clippy::too_many_arguments)]
 pub fn deduplicate_diff<R: BufRead>(
     reader: R,
     baseline_path: &str,
@@ -190,8 +203,9 @@ pub fn deduplicate_diff<R: BufRead>(
     strict: bool,
     strip_query: bool,
     sort: bool,
+    path_only: bool,
 ) -> Result<Vec<String>, String> {
-    let baseline_set = load_baseline(baseline_path, config, assume_scheme, strict, strip_query)?;
+    let baseline_set = load_baseline(baseline_path, config, assume_scheme, strict, strip_query, path_only)?;
     let fingerprinter = Fingerprinter::new(config);
 
     let mut new_urls = Vec::new();
@@ -206,7 +220,12 @@ pub fn deduplicate_diff<R: BufRead>(
             continue;
         }
 
-        let Some(parsed) = parse_url(trimmed, assume_scheme) else { continue };
+        let parsed = if path_only {
+            parse_path(trimmed)
+        } else {
+            parse_url(trimmed, assume_scheme)
+        };
+        let Some(parsed) = parsed else { continue };
 
         let key = if strict {
             trimmed.to_string()
@@ -238,6 +257,7 @@ fn load_baseline(
     assume_scheme: &str,
     strict: bool,
     strip_query: bool,
+    path_only: bool,
 ) -> Result<AHashSet<String>, String> {
     let file = File::open(path)
         .map_err(|e| format!("Failed to open baseline file '{path}': {e}"))?;
@@ -255,7 +275,12 @@ fn load_baseline(
             continue;
         }
 
-        let Some(parsed) = parse_url(trimmed, assume_scheme) else { continue };
+        let parsed = if path_only {
+            parse_path(trimmed)
+        } else {
+            parse_url(trimmed, assume_scheme)
+        };
+        let Some(parsed) = parsed else { continue };
 
         let key = if strict {
             trimmed.to_string()

@@ -61,7 +61,7 @@ fn run_learn(cli: &Cli, config: &Config) -> Result<(), Box<dyn std::error::Error
         None => Box::new(BufReader::with_capacity(256 * 1024, stdin())),
     };
 
-    let analyzed = analyze_cardinality(reader, config, &cli.assume_scheme);
+    let analyzed = analyze_cardinality(reader, config, &cli.assume_scheme, cli.path_only);
     print_cardinality_report(&analyzed.report);
 
     if let Some(save_path) = &cli.save_config {
@@ -78,6 +78,7 @@ fn run_learn(cli: &Cli, config: &Config) -> Result<(), Box<dyn std::error::Error
                 &cli.assume_scheme,
                 cli.strip_query,
                 cli.sort,
+                cli.path_only,
             );
 
             let writer: Box<dyn std::io::Write> = if let Some(output) = &cli.output {
@@ -114,6 +115,7 @@ fn run_diff(cli: &Cli, config: &Config, baseline: &str) -> Result<(), Box<dyn st
         cli.diff_strict,
         cli.strip_query,
         cli.sort,
+        cli.path_only,
     )?;
 
     let writer: Box<dyn std::io::Write> = if let Some(output) = &cli.output {
@@ -164,6 +166,7 @@ fn run_dedup_stream(cli: &Cli, config: &Config) -> Result<(), Box<dyn std::error
         &cli.assume_scheme,
         cli.strip_query,
         cli.format,
+        cli.path_only,
     )?;
 
     if cli.stats {
@@ -183,7 +186,7 @@ fn run_dedup_batch(cli: &Cli, config: &Config) -> Result<(), Box<dyn std::error:
         Box::new(BufReader::with_capacity(256 * 1024, stdin()))
     };
 
-    let result = deduplicate(reader, config, &cli.assume_scheme, cli.strip_query, cli.sort);
+    let result = deduplicate(reader, config, &cli.assume_scheme, cli.strip_query, cli.sort, cli.path_only);
 
     if let Some(invalid_path) = &cli.invalid_output {
         write_invalid_urls(&result.invalid_urls, invalid_path)?;

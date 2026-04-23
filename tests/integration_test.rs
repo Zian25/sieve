@@ -1,7 +1,7 @@
 use urlsieve::config::Config;
 use urlsieve::dedup::{deduplicate, deduplicate_diff};
 use urlsieve::detector::shannon_entropy;
-use urlsieve::url::{parse_url, Fingerprinter};
+use urlsieve::url::{parse_path, parse_url, Fingerprinter};
 use std::env;
 use std::io::Cursor;
 
@@ -297,7 +297,7 @@ fn test_fingerprint_ulid_normalization() {
 fn test_deduplicate_basic() {
     let config = Config::default();
     let input = "https://example.com/a\nhttps://example.com/a\nhttps://example.com/b\n";
-    let result = deduplicate(Cursor::new(input), &config, "https", false, false);
+    let result = deduplicate(Cursor::new(input), &config, "https", false, false, false);
 
     assert_eq!(result.total_urls, 3);
     assert_eq!(result.unique_fingerprints, 2);
@@ -312,7 +312,7 @@ https://api.example.com/v1/merchants/df8b8a77-6f3e-4733-978c-f0b8fa28b0a4/catalo
 https://api.example.com/v1/merchants/e917d8d4-1034-44ef-a590-71f53e408986/catalog
 https://api.example.com/v1/merchants/df8b8a77-6f3e-4733-978c-f0b8fa28b0a4/catalog
 ";
-    let result = deduplicate(Cursor::new(input), &config, "https", false, false);
+    let result = deduplicate(Cursor::new(input), &config, "https", false, false, false);
 
     assert_eq!(result.total_urls, 3);
     assert_eq!(result.unique_fingerprints, 1);
@@ -331,8 +331,8 @@ https://api.example.com/v1/users/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/profile
 https://api.example.com/v1/users/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/profile
 ";
 
-    let r1 = deduplicate(Cursor::new(input1), &config, "https", false, false);
-    let r2 = deduplicate(Cursor::new(input2), &config, "https", false, false);
+    let r1 = deduplicate(Cursor::new(input1), &config, "https", false, false, false);
+    let r2 = deduplicate(Cursor::new(input2), &config, "https", false, false, false);
 
     assert_eq!(r1.groups.len(), 1);
     assert_eq!(r2.groups.len(), 1);
@@ -344,7 +344,7 @@ https://api.example.com/v1/users/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/profile
 fn test_deduplicate_invalid_urls() {
     let config = Config::default();
     let input = "https://example.com/valid\nftp://example.com/invalid\njavascript:alert(1)\n";
-    let result = deduplicate(Cursor::new(input), &config, "https", false, false);
+    let result = deduplicate(Cursor::new(input), &config, "https", false, false, false);
 
     assert_eq!(result.total_urls, 3);
     assert_eq!(result.invalid_urls.len(), 2);
@@ -354,7 +354,7 @@ fn test_deduplicate_invalid_urls() {
 fn test_deduplicate_empty_lines_skipped() {
     let config = Config::default();
     let input = "\n\nhttps://example.com/a\n\n\n";
-    let result = deduplicate(Cursor::new(input), &config, "https", false, false);
+    let result = deduplicate(Cursor::new(input), &config, "https", false, false, false);
 
     assert_eq!(result.total_urls, 1);
     assert_eq!(result.unique_fingerprints, 1);
@@ -364,7 +364,7 @@ fn test_deduplicate_empty_lines_skipped() {
 fn test_deduplicate_scheme_assumption() {
     let config = Config::default();
     let input = "example.com/path\n";
-    let result = deduplicate(Cursor::new(input), &config, "https", false, false);
+    let result = deduplicate(Cursor::new(input), &config, "https", false, false, false);
 
     assert_eq!(result.total_urls, 1);
     assert_eq!(result.unique_fingerprints, 1);
@@ -377,7 +377,7 @@ fn test_deduplicate_strip_query() {
 https://api.example.com/data?token=abc&page=1
 https://api.example.com/data?token=xyz&page=2
 ";
-    let result = deduplicate(Cursor::new(input), &config, "https", true, false);
+    let result = deduplicate(Cursor::new(input), &config, "https", true, false, false);
 
     assert_eq!(result.total_urls, 2);
     assert_eq!(result.unique_fingerprints, 1);
@@ -405,6 +405,7 @@ fn test_diff_fingerprint_mode() {
         false,
         false,
         false,
+        false,
     )
     .unwrap();
 
@@ -417,6 +418,7 @@ fn test_diff_fingerprint_mode() {
         path.to_str().unwrap(),
         &config,
         "https",
+        false,
         false,
         false,
         false,
@@ -448,6 +450,7 @@ fn test_diff_strict_mode() {
         true,
         false,
         false,
+        false,
     )
     .unwrap();
 
@@ -466,6 +469,7 @@ fn test_diff_strict_mode() {
         &config,
         "https",
         true,
+        false,
         false,
         false,
     )
@@ -505,12 +509,86 @@ fn test_parse_url_httpx_with_query_params() {
     assert_eq!(parsed.query.as_deref(), Some("q=test"));
 }
 
+// ── Path-Only Mode ──────────────────────────────────────────────
+
+#[test]
+fn test_parse_path_basic() {
+    let parsed = parse_path("/api/v1/users/12345").unwrap();
+    assert_eq!(parsed.scheme, "");
+    assert_eq!(parsed.host, "");
+    assert_eq!(parsed.path, "/api/v1/users/12345");
+    assert!(parsed.query.is_none());
+}
+
+#[test]
+fn test_parse_path_with_query() {
+    let parsed = parse_path("/api/search?q=test&page=1").unwrap();
+    assert_eq!(parsed.path, "/api/search");
+    assert_eq!(parsed.query.as_deref(), Some("q=test&page=1"));
+}
+
+#[test]
+fn test_parse_path_query_only() {
+    let parsed = parse_path("?action=details").unwrap();
+    assert_eq!(parsed.path, "");
+    assert_eq!(parsed.query.as_deref(), Some("action=details"));
+}
+
+#[test]
+fn test_parse_path_with_tool_output() {
+    let parsed = parse_path("/api/v1/users [200] [Cloudflare,HSTS]").unwrap();
+    assert_eq!(parsed.path, "/api/v1/users");
+    assert!(parsed.query.is_none());
+}
+
+#[test]
+fn test_parse_path_empty() {
+    assert!(parse_path("").is_none());
+    assert!(parse_path("   ").is_none());
+}
+
+#[test]
+fn test_deduplicate_path_only_basic() {
+    let config = Config::default();
+    let input = "/api/v1/users/12345\n/api/v1/users/67890\n/api/v1/users/12345\n/api/v2/products\n";
+    let result = deduplicate(Cursor::new(input), &config, "https", false, false, true);
+    assert_eq!(result.total_urls, 4);
+    // 12345 and 67890 normalize to same fingerprint {id}, so 2 unique groups
+    assert_eq!(result.unique_fingerprints, 2);
+}
+
+#[test]
+fn test_deduplicate_path_only_groups_uuids() {
+    let config = Config::default();
+    let input = "/api/v1/users/df8b8a77-6f3e-4733-978c-f0b8fa28b0a4/profile\n\
+                 /api/v1/users/e917d8d4-1034-44ef-a590-71f53e408986/profile\n\
+                 /api/v1/users/57ea1f72-7abe-4d77-be04-94037844e8a2/profile\n\
+                 /api/v1/orders/12345\n\
+                 /api/v1/orders/67890\n";
+    let result = deduplicate(Cursor::new(input), &config, "https", false, false, true);
+    assert_eq!(result.total_urls, 5);
+    assert_eq!(result.unique_fingerprints, 2);
+}
+
+#[test]
+fn test_deduplicate_path_only_query_params() {
+    let config = Config::default();
+    let input = "/search?q=test&page=1\n\
+                 /search?q=other&page=2\n\
+                 /search?q=test&page=1\n\
+                 ?action=details\n\
+                 ?action=details\n";
+    let result = deduplicate(Cursor::new(input), &config, "https", false, false, true);
+    assert_eq!(result.total_urls, 5);
+    assert_eq!(result.unique_fingerprints, 3);
+}
+
 // ── Edge Cases ──────────────────────────────────────────────
 
 #[test]
 fn test_deduplicate_empty_input() {
     let config = Config::default();
-    let result = deduplicate(Cursor::new(""), &config, "https", false, false);
+    let result = deduplicate(Cursor::new(""), &config, "https", false, false, false);
     assert_eq!(result.total_urls, 0);
     assert_eq!(result.unique_fingerprints, 0);
     assert!(result.groups.is_empty());
@@ -520,7 +598,7 @@ fn test_deduplicate_empty_input() {
 fn test_deduplicate_all_invalid() {
     let config = Config::default();
     let input = "ftp://bad.com/a\njavascript:alert(1)\ndata:text/html,bad\n";
-    let result = deduplicate(Cursor::new(input), &config, "https", false, false);
+    let result = deduplicate(Cursor::new(input), &config, "https", false, false, false);
     assert_eq!(result.total_urls, 3);
     assert_eq!(result.unique_fingerprints, 0);
     assert_eq!(result.invalid_urls.len(), 3);
@@ -542,6 +620,7 @@ fn test_diff_strip_query_mode() {
         "https",
         false,
         true,
+        false,
         false,
     )
     .unwrap();
@@ -590,7 +669,7 @@ https://api.example.com/v1/users/jkl012?session=tok4&locale=en
 https://api.example.com/v1/users/mno345?session=tok5&locale=en
 https://api.example.com/v1/users/pqr678?session=tok6&locale=en
 ";
-    let analyzed = analyze_cardinality(Cursor::new(input), &config, "https");
+    let analyzed = analyze_cardinality(Cursor::new(input), &config, "https", false);
     let learned = build_learned_config(&analyzed.report);
 
     // session has 6 unique values → falls between thresholds (not always/never normalized)
@@ -610,7 +689,7 @@ fn test_save_learned_config_roundtrip() {
     }
     let input = lines.join("\n");
 
-    let analyzed = analyze_cardinality(Cursor::new(input), &config, "https");
+    let analyzed = analyze_cardinality(Cursor::new(input), &config, "https", false);
     save_learned_config(&analyzed.report, "test_learned.toml").unwrap();
 
     // Verify the file can be loaded back
@@ -626,7 +705,7 @@ fn test_save_learned_config_roundtrip() {
 fn test_json_output_format() {
     let config = Config::default();
     let input = "https://example.com/a\nhttps://example.com/b\n";
-    let result = deduplicate(Cursor::new(input), &config, "https", false, false);
+    let result = deduplicate(Cursor::new(input), &config, "https", false, false, false);
 
     let json = serde_json::to_string(&result).unwrap();
     assert!(json.contains("total_urls"));
@@ -646,7 +725,7 @@ https://api.example.com/v1/merchants/df8b8a77-6f3e-4733-978c-f0b8fa28b0a4/catalo
 https://api.example.com/v1/merchants/e917d8d4-1034-44ef-a590-71f53e408986/catalog
 https://api.example.com/v1/merchants/df8b8a77-6f3e-4733-978c-f0b8fa28b0a4/extra";
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
 
     // 2 fingerprints: /catalog and /extra — not 3
     assert_eq!(result.unique_fingerprints, 2);
@@ -658,7 +737,7 @@ fn test_always_normalize_param_grouped() {
 https://api.example.com/search?q=pizza&token=abc123
 https://api.example.com/search?q=pizza&token=xyz789";
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
     assert_eq!(result.unique_fingerprints, 1);
 }
 
@@ -668,7 +747,7 @@ fn test_never_normalize_param_preserved() {
 https://api.example.com/items?page=1
 https://api.example.com/items?page=2";
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
     assert_eq!(result.unique_fingerprints, 2);
 }
 
@@ -680,7 +759,7 @@ https://api.example.com/citiesByState?state=RJ
 https://api.example.com/getUserProfile/data
 https://api.example.com/darkMode/settings";
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
 
     // citiesByState with different states = 2 fingerprints
     // getUserProfile and darkMode = 2 unique fingerprints, not normalized
@@ -693,7 +772,7 @@ fn test_cache_bust_filename_grouped() {
 https://cdn.example.com/assets/bundle.a3f9d2b1.js
 https://cdn.example.com/assets/bundle.c7e5d2a1.js";
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
     assert_eq!(result.unique_fingerprints, 1);
 }
 
@@ -706,7 +785,7 @@ https://cdn.example.com/assets/app.f6e5d4c3b2a1.min.js
 https://cdn.example.com/assets/styles.1234567890abcdef.prod.css
 https://cdn.example.com/assets/styles.abcdef1234567890.prod.css";
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
     assert_eq!(result.unique_fingerprints, 2);
 }
 
@@ -718,7 +797,7 @@ fn test_cache_bust_numeric_not_grouped() {
 https://cdn.example.com/images/sku.88392011.jpg
 https://cdn.example.com/images/sku.99112233.jpg";
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
     assert_eq!(result.unique_fingerprints, 2);
 }
 
@@ -728,7 +807,7 @@ fn test_non_hash_filename_not_grouped() {
 https://cdn.example.com/assets/main.js
 https://cdn.example.com/assets/vendor.js";
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
     assert_eq!(result.unique_fingerprints, 2);
 }
 
@@ -738,7 +817,7 @@ fn test_invalid_encoding_processed_lossy() {
     // so URLs with invalid percent encoding are still processed instead of being rejected
     let input = "https://example.com/path/%FF%FF/resource";
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
 
     assert_eq!(result.total_urls, 1);
     assert_eq!(result.unique_fingerprints, 1);
@@ -763,7 +842,7 @@ https://marketplace.example.com.br/robots.txt
 https://marketplace.example.com.br/favicon.ico
 ";
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
 
     // Expected grouping:
     // 1. /v1/merchants/{uuid}/catalog (2 URLs)
@@ -786,7 +865,7 @@ fn test_real_world_dataset_regression() {
     // This catches unintended behavioral changes that synthetic data won't reveal
     let input = include_str!("../testdata/real_world.txt");
 
-    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false);
+    let result = deduplicate(Cursor::new(input), &Config::default(), "https", false, false, false);
 
     // Fixed numbers from the known dataset
     assert_eq!(result.total_urls, 200);

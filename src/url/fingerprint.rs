@@ -31,12 +31,14 @@ impl Fingerprinter {
 
     pub fn fingerprint_into(&self, parsed: &ParsedUrl, buffer: &mut String) {
         buffer.clear();
-        buffer.push_str(&parsed.scheme);
-        buffer.push_str("://");
-        buffer.push_str(&parsed.host);
-        if let Some(port) = parsed.port {
-            buffer.push(':');
-            buffer.push_str(&port.to_string());
+        if !parsed.scheme.is_empty() {
+            buffer.push_str(&parsed.scheme);
+            buffer.push_str("://");
+            buffer.push_str(&parsed.host);
+            if let Some(port) = parsed.port {
+                buffer.push(':');
+                buffer.push_str(&port.to_string());
+            }
         }
 
         for segment in parsed.path.split('/').filter(|s| !s.is_empty()) {

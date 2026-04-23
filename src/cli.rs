@@ -81,6 +81,10 @@ pub struct Cli {
     /// Sort output by fingerprint (deterministic but slower for large inputs)
     #[arg(long)]
     pub sort: bool,
+
+    /// Treat input as paths/endpoints only (no scheme/host parsing)
+    #[arg(long)]
+    pub path_only: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

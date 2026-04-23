@@ -3,7 +3,7 @@ use std::io::BufRead;
 use ahash::{AHashMap, AHashSet};
 
 use crate::config::Config;
-use crate::url::parse_url;
+use crate::url::{parse_path, parse_url};
 
 pub struct CardinalityReport {
     pub position_stats: AHashMap<usize, PositionInfo>,
@@ -30,6 +30,7 @@ pub fn analyze_cardinality<R: BufRead>(
     reader: R,
     _config: &Config,
     assume_scheme: &str,
+    path_only: bool,
 ) -> AnalyzedInput {
     let mut position_values: AHashMap<usize, Vec<String>> = AHashMap::new();
     let mut query_param_values: AHashMap<String, Vec<String>> = AHashMap::new();
@@ -42,7 +43,12 @@ pub fn analyze_cardinality<R: BufRead>(
             continue;
         }
 
-        let Some(parsed) = parse_url(trimmed, assume_scheme) else { continue };
+        let parsed = if path_only {
+            parse_path(trimmed)
+        } else {
+            parse_url(trimmed, assume_scheme)
+        };
+        let Some(parsed) = parsed else { continue };
 
         let segments: Vec<&str> = parsed.path.split('/').filter(|s| !s.is_empty()).collect();
         for (i, segment) in segments.iter().enumerate() {
