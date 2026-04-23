@@ -1,6 +1,6 @@
 # Sieve
 
-[![Crates.io](https://img.shields.io/crates/v/sieve)](https://crates.io/crates/sieve)
+[![Crates.io](https://img.shields.io/crates/v/urlsieve)](https://crates.io/crates/urlsieve)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > Intelligent URL deduplication for offensive security workflows.
@@ -12,7 +12,7 @@ Modern crawlers (katana, hakrawler) and fuzzers output massive lists of URLs. Fe
 
 ## Why Sieve?
 
-| Feature | `anew` | `uro` | **sieve** |
+| Feature | `anew` | `uro` | **urlsieve** |
 |---------|--------|-------|-----------|
 | Semantic path normalization | ❌ | ✅ | ✅ |
 | Streaming (zero-latency) | ❌ | ❌ | ✅ |
@@ -22,27 +22,27 @@ Modern crawlers (katana, hakrawler) and fuzzers output massive lists of URLs. Fe
 ## Install
 
 ```bash
-cargo install sieve
+cargo install urlsieve
 ```
 
 Or build from source:
 
 ```bash
 cargo build --release
-./target/release/sieve --help
+./target/release/urlsieve --help
 ```
 
 ## Quick Start
 
 ```bash
 # Deduplicate a file (reads from stdin by default)
-cat urls.txt | sieve
+cat urls.txt | urlsieve
 
 # Read from file, write to file
-sieve -i urls.txt -o deduped.txt
+urlsieve -i urls.txt -o deduped.txt
 
 # Show statistics
-sieve -i urls.txt --stats
+urlsieve -i urls.txt --stats
 ```
 
 > **Note:** Streaming mode (default, no `--sort`) emits the first seen URL per group. For deterministic output (lexicographically smallest representative), use `--sort`.
@@ -78,16 +78,16 @@ Query parameter values are analyzed via Shannon entropy to distinguish dynamic t
 
 ```bash
 # rep (default) -- one representative URL per group
-sieve -i urls.txt --format rep
+urlsieve -i urls.txt --format rep
 
 # counted -- URL with duplicate count as inline comment
-sieve -i urls.txt --format counted
+urlsieve -i urls.txt --format counted
 
 # json -- single JSON object with full structure
-sieve -i urls.txt --format json
+urlsieve -i urls.txt --format json
 
 # jsonl -- one JSON object per line (stream-friendly)
-sieve -i urls.txt --format jsonl
+urlurlsieve -i urls.txt --format jsonl
 ```
 
 ## Streaming Mode (Zero-Latency Pipeline)
@@ -98,10 +98,10 @@ This enables real-time pipelines where downstream tools start processing the fir
 
 ```bash
 # nuclei begins scanning immediately -- no wait for full dedup
-cat 50M_urls.txt | sieve | nuclei -l -
+cat 50M_urls.txt | urlsieve | nuclei -l -
 
 # Same with httpx
-sieve -i urls.txt | httpx -silent -status-code
+urlsieve -i urls.txt | httpx -silent -status-code
 ```
 
 Streaming mode is automatically disabled when `--sort`, `--format counted`, `--format json`, or `--invalid-output` is used, as these require the full dataset before output.
@@ -112,13 +112,13 @@ Compare a new URL list against a previously seen baseline, outputting only new (
 
 ```bash
 # Fingerprint-based diff (new structural paths only)
-sieve --diff baseline.txt -i new_urls.txt
+urlsieve --diff baseline.txt -i new_urls.txt
 
 # Strict diff (exact URL match)
-sieve --diff baseline.txt --diff-strict -i new_urls.txt
+urlsieve --diff baseline.txt --diff-strict -i new_urls.txt
 
 # Strip query params before comparison
-sieve --diff baseline.txt --strip-query -i new_urls.txt
+urlsieve --diff baseline.txt --strip-query -i new_urls.txt
 ```
 
 ## Learn Mode
@@ -127,13 +127,13 @@ Analyze URL cardinality to determine which path segments and query parameters ar
 
 ```bash
 # Print cardinality report (goes to stderr)
-sieve --learn -i urls.txt
+urlsieve --learn -i urls.txt
 
 # Save learned config to TOML
-sieve --learn --save-config learned.toml -i urls.txt
+urlsieve --learn --save-config learned.toml -i urls.txt
 
 # Analyze and immediately apply the learned config
-sieve --learn --apply -i urls.txt --stats
+urlsieve --learn --apply -i urls.txt --stats
 ```
 
 > **Note:** `--learn` infers path segment patterns from a sample of up to 10 unique values. Positions with extremely high cardinality (>500 unique values) are skipped to avoid generating overly broad patterns — those segments are handled by the entropy detector instead. Only UUID and numeric patterns are auto-generated; other types fall back to entropy-based detection.
@@ -142,7 +142,7 @@ sieve --learn --apply -i urls.txt --stats
 
 Sieve is engineered to handle pipelines with tens of millions of URLs:
 
-- **Throughput:** ~400k URLs/sec on a modern processor (full pipeline: parse + fingerprint + dedup).
+- **Throughput:** ~425k URLs/sec on a modern processor (full pipeline: parse + fingerprint + dedup).
 - **Memory:** ~8 bytes per unique fingerprint in streaming mode (only a `u64` hash is stored).
 - **Batch mode:** Holds full result set in memory; suitable for datasets up to several million URLs.
 - **Reusable fingerprint buffer:** A single pre-allocated `String` is reused across all URLs, avoiding heap allocation per URL in the hot path.
@@ -154,7 +154,7 @@ Sieve is engineered to handle pipelines with tens of millions of URLs:
 Sieve uses a TOML config file with sensible defaults. Override with `-c`:
 
 ```bash
-sieve -i urls.txt -c myconfig.toml
+urlsieve -i urls.txt -c myconfig.toml
 ```
 
 Default config:
@@ -202,24 +202,44 @@ pattern_segments = ["v\\d+"]
 
 ```bash
 # Basic dedup with stats
-sieve -i urls.txt --stats
+urlsieve -i urls.txt --stats
 
 # Dedup, then scan with nuclei
-sieve -i urls.txt | nuclei -l -
+urlsieve -i urls.txt | nuclei -l -
 
 # Diff against yesterday's scan
-sieve --diff yesterday.txt -i today.txt --stats
+urlsieve --diff yesterday.txt -i today.txt --stats
 
 # Learn from a large dataset, then apply
-sieve --learn --save-config recon.toml -i all_urls.txt
-sieve -i new_urls.txt -c recon.toml --stats
+urlsieve --learn --save-config recon.toml -i all_urls.txt
+urlsieve -i new_urls.txt -c recon.toml --stats
+
+# Analyze and immediately apply learned config in one step
+urlsieve --learn --apply -i urls.txt --stats
 
 # Stream JSONL output for downstream processing
-sieve -i urls.txt --format jsonl | jq -r '.representative'
+urlurlurlsieve -i urls.txt --format jsonl | jq -r '.representative'
 
 # Dedup scheme-less URLs
-sieve -i hosts.txt --assume-scheme https
+urlsieve -i hosts.txt --assume-scheme https
+
+# Dedup ignoring query params (useful when only params differ)
+urlsieve -i urls.txt --strip-query --stats
+
+# Save invalid URLs for inspection
+urlsieve -i urls.txt --invalid-output invalid.txt --stats
 ```
+
+## What Counts as an Invalid URL?
+
+Sieve rejects URLs that cannot be parsed as valid HTTP/HTTPS:
+
+- `ftp://`, `file://`, `javascript:` schemes → rejected
+- Invalid percent-encoding (e.g., `%GG`) → decoded lossily, still processed
+- Malformed URLs with no host → rejected
+- Protocol-relative URLs (`//cdn.example.com/file.js`) → accepted, `https` assumed
+
+Invalid URLs are silently dropped in streaming mode. Use `--invalid-output` in batch mode to collect them for inspection.
 
 ## License
 

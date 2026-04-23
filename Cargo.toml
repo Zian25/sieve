@@ -1,0 +1,51 @@
+[package]
+name = "urlsieve"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Intelligent URL deduplication tool for bug bounty workflows"
+authors = ["Zian F. do Vale <UpsideDownFox@pm.me>"]
+license = "MIT"
+repository = "https://github.com/zian25/urlsieve"
+homepage = "https://github.com/zian25/urlsieve"
+documentation = "https://docs.rs/urlsieve"
+readme = "README.md"
+keywords = ["bug-bounty", "url", "deduplication", "recon", "security"]
+categories = ["command-line-utilities", "web-programming"]
+exclude = [
+    "testdata/",
+    ".github/",
+    "benches/",
+    "generator.bat",
+    "generator.txt"
+]
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+url = "2"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1.1.2"
+ahash = "0.8"
+rapidhash = "4"
+percent-encoding = "2"
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[[bench]]
+name = "dedup_benchmark"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
+
+[profile.bench]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

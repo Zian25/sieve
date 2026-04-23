@@ -1,0 +1,12 @@
+[general]
+min_segment_len = 8
+entropy_threshold = 3.5
+patterns = ["uuid", "hash", "numid", "timestamp", "epoch", "base64", "mongo", "short_token", "ulid", "entropy"]
+
+[normalize_params]
+always_normalize = []
+never_normalize = ["category_items_size", "channel", "country", "items_page", "items_size", "latitude", "longitude", "state", "utm_campaign", "utm_medium", "utm_source"]
+
+[structural]
+literal_segments = ["api", "graphql", "health", "status", "favicon.ico", "robots.txt"]
+pattern_segments = ["[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"]

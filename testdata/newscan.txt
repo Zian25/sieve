@@ -1,0 +1,4 @@
+https://marketplace.example.com.br/v1/merchants/e917d8d4-1034-44ef-a590-71f53e408986/catalog
+https://api.example.com/v1/users/67890/profile?token=xyz789&page=2
+https://example.com/page
+https://api.example.com/v2/new-endpoint/test
