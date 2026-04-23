@@ -388,7 +388,7 @@ https://api.example.com/data?token=xyz&page=2
 #[test]
 fn test_diff_fingerprint_mode() {
     let config = Config::default();
-    let path = env::temp_dir().join("sieve_test_fp.txt");
+    let path = env::temp_dir().join("urlsieve_test_fp.txt");
 
     let baseline_content =
         "https://api.example.com/v1/merchants/df8b8a77-6f3e-4733-978c-f0b8fa28b0a4/catalog\n";
@@ -431,7 +431,7 @@ fn test_diff_fingerprint_mode() {
 #[test]
 fn test_diff_strict_mode() {
     let config = Config::default();
-    let path = env::temp_dir().join("sieve_test_strict.txt");
+    let path = env::temp_dir().join("urlsieve_test_strict.txt");
 
     let baseline_content =
         "https://api.example.com/v1/merchants/df8b8a77-6f3e-4733-978c-f0b8fa28b0a4/catalog\n";
@@ -514,7 +514,7 @@ fn test_deduplicate_all_invalid() {
 #[test]
 fn test_diff_strip_query_mode() {
     let config = Config::default();
-    let path = env::temp_dir().join("sieve_test_strip.txt");
+    let path = env::temp_dir().join("urlsieve_test_strip.txt");
 
     let baseline_content = "https://api.example.com/v1/users/df8b8a77-6f3e-4733-978c-f0b8fa28b0a4/profile?token=old\n";
     std::fs::write(&path, baseline_content).unwrap();

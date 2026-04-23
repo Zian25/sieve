@@ -1,4 +1,4 @@
-# Sieve
+# Urlsieve
 
 [![Crates.io](https://img.shields.io/crates/v/urlsieve)](https://crates.io/crates/urlsieve)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -10,7 +10,7 @@
 
 Modern crawlers (katana, hakrawler) and fuzzers output massive lists of URLs. Feeding 10,000 variations of the same endpoint (e.g., `/api/v1/users/{uuid}/profile`) into scanners like `nuclei` or `sqlmap` wastes compute time, burns bandwidth, and triggers rate limiting that gets your IP banned by WAFs.
 
-## Why Sieve?
+## Why Urlsieve?
 
 | Feature | `anew` | `uro` | **urlsieve** |
 |---------|--------|-------|-----------|
@@ -87,7 +87,7 @@ urlsieve -i urls.txt --format counted
 urlsieve -i urls.txt --format json
 
 # jsonl -- one JSON object per line (stream-friendly)
-urlurlsieve -i urls.txt --format jsonl
+urlsieve -i urls.txt --format jsonl
 ```
 
 ## Streaming Mode (Zero-Latency Pipeline)
@@ -218,7 +218,7 @@ urlsieve -i new_urls.txt -c recon.toml --stats
 urlsieve --learn --apply -i urls.txt --stats
 
 # Stream JSONL output for downstream processing
-urlurlurlsieve -i urls.txt --format jsonl | jq -r '.representative'
+urlsieve -i urls.txt --format jsonl | jq -r '.representative'
 
 # Dedup scheme-less URLs
 urlsieve -i hosts.txt --assume-scheme https
