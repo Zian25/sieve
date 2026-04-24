@@ -54,7 +54,7 @@ urlsieve -i urls.txt --stats
 | REST API (marketplace) | 1,706 | 81 | 95% |
 | Mixed crawl (GAU output) | 498 | 319 | 36% |
 
-REST APIs with UUID/numeric IDs compress aggressively. Static asset-heavy sites (WordPress, Next.js) compress less -- Sieve correctly preserves semantically distinct paths.
+REST APIs with UUID/numeric IDs compress aggressively. Static asset-heavy sites (WordPress, Next.js) compress less -- Urlsieve correctly preserves semantically distinct paths.
 
 ## How It Works
 
@@ -92,7 +92,7 @@ urlsieve -i urls.txt --format jsonl
 
 ## Streaming Mode (Zero-Latency Pipeline)
 
-When using `--format rep` or `--format jsonl` without `--sort`, Sieve operates in streaming mode: URLs are emitted to stdout immediately as they are read, with zero buffering of the full result set. Only a `u64` hash per unique fingerprint is kept in memory.
+When using `--format rep` or `--format jsonl` without `--sort`, Urlsieve operates in streaming mode: URLs are emitted to stdout immediately as they are read, with zero buffering of the full result set. Only a `u64` hash per unique fingerprint is kept in memory.
 
 This enables real-time pipelines where downstream tools start processing the first URL instantly:
 
@@ -161,7 +161,7 @@ urlsieve --learn --apply -i urls.txt --stats
 
 ## Performance
 
-Sieve is engineered to handle pipelines with tens of millions of URLs:
+Urlsieve is engineered to handle pipelines with tens of millions of URLs:
 
 - **Throughput:** ~425k URLs/sec on a modern processor (full pipeline: parse + fingerprint + dedup).
 - **Memory:** ~8 bytes per unique fingerprint in streaming mode (only a `u64` hash is stored).
@@ -172,7 +172,7 @@ Sieve is engineered to handle pipelines with tens of millions of URLs:
 
 ## Configuration
 
-Sieve uses a TOML config file with sensible defaults. Override with `-c`:
+Urlsieve uses a TOML config file with sensible defaults. Override with `-c`:
 
 ```bash
 urlsieve -i urls.txt -c myconfig.toml
@@ -257,7 +257,7 @@ urlsieve -i urls.txt --invalid-output invalid.txt --stats
 
 ## What Counts as an Invalid URL?
 
-Sieve rejects URLs that cannot be parsed as valid HTTP/HTTPS:
+Urlsieve rejects URLs that cannot be parsed as valid HTTP/HTTPS:
 
 - `ftp://`, `file://`, `javascript:` schemes → rejected
 - Invalid percent-encoding (e.g., `%GG`) → decoded lossily, still processed
